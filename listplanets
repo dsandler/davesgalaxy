@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import game
+import sys
+
+U,P = sys.argv[1:3]
+
+g=game.Galaxy()
+g.login(U,P)
+print 'Name, ID, Society, Population, Money, Food, Steel'
+for p in g.planets:
+  p.load()
+  print '"%s", %d, %d, %d, %d, %d, %d' % (
+    p.name, p.planetid, p.society, p.population, p.money, p.food[0], p.steel[0]
+  )
+
+
