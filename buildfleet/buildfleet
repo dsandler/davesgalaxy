@@ -1,0 +1,58 @@
+#!/usr/bin/python
+
+import sys
+import os
+import re
+
+sessionid,planetid=sys.argv[1:3]
+tobuild=sys.argv[3:]
+
+# POST /planets/PLANETID/buildfleet/ HTTP/1.1Host:
+# davesgalaxy.comConnection: keep-aliveContent-Length: 238Origin:
+# http://davesgalaxy.comX-Requested-With: XMLHttpRequestUser-Agent:
+# Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/535.11
+# (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11Content-Type:
+# application/x-www-form-urlencodedAccept: application/json,
+# text/javascript, */*Referer:
+# http://davesgalaxy.com/view/Accept-Encoding:
+# gzip,deflate,sdchAccept-Language: en-US,en;q=0.8Accept-Charset:
+# ISO-8859-1,utf-8;q=0.7,*;q=0.3Cookie:
+# sessionid=SESSIONID
+
+#submit-build-PLANETID=1&submit-build-another-PLANETID=1&num-superbattleships=0&num-bulkfreighters=0&num-subspacers=0&num-arcs=0&num-blackbirds=0&num-merchantmen=0&num-scouts=2&num-battleships=0&num-destroyers=0&num-frigates=0&num-cruisers=0
+
+ships=dict(
+  superbattleships=0,
+  bulkfreighters=0,
+  subspacers=0,
+  arcs=0,
+  blackbirds=0,
+  merchantmen=0,
+  scouts=0,
+  battleships=0,
+  destroyers=0,
+  frigates=0,
+  cruisers=0
+)
+
+#ships['scouts'] = 1
+#ships['superbattleships'] = 4
+for pr in tobuild:
+  ship, qty = pr.split("=")
+  if ship in ships:
+    ships[ship] += int(qty)
+  else:
+    print "error: unknown ship type: " + ship
+
+formdata='submit-build-%(planetid)s=1&submit-build-another-%(planetid)s=1&' \
+  % dict(planetid=planetid)
+formdata += '&'.join('num-%s=%d' % (k,v) for (k,v) in ships.items())
+
+cmd='''curl --data '%s' \
+  -b sessionid=%s \
+  http://davesgalaxy.com/planets/%s/buildfleet/''' %(
+     formdata,
+     sessionid,
+     planetid)
+print "> " + cmd
+print os.system(cmd)
