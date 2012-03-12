@@ -3,15 +3,53 @@ import urllib
 import urllib2
 import json
 import re
+from itertools import izip
 from BeautifulSoup import BeautifulSoup
 
 HOST = "http://davesgalaxy.com/"
 URL_LOGIN = HOST + "/login/"
 URL_VIEW = HOST + "/view/"
 URL_PLANETS = HOST + "/planets/list/all/%d/"
+URL_FLEETS = HOST + "/fleets/list/all/%d/"
 URL_PLANET_DETAIL = HOST + "/planets/%d/info/"
+URL_FLEET_DETAIL = HOST + "/fleets/%d/info/"
+
+def pairs(t):
+  return izip(*[iter(t)]*2)
+
+def parse_coords(s):
+  m = re.match(r'\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)', s)
+  if m: return map(float, m.groups())
+  return None
 
 class Galaxy:
+  class Fleet:
+    def __init__(self, galaxy, fleetid, coords):
+      self.galaxy = galaxy
+      self.fleetid = int(fleetid)
+      self.coords = coords
+      self._loaded = False
+    def __repr__(self):
+      return "<Fleet #%d%s @ (%.1f,%.1f)>" % (self.fleetid, 
+        (' (%s, %s ships)' % (self.disposition, len(self.ships))) \
+          if self._loaded else '',
+        self.coords[0], self.coords[1])
+    def load(self):
+      if self._loaded: return
+      req = self.galaxy.opener.open(URL_FLEET_DETAIL % self.fleetid)
+      soup = self.soup = BeautifulSoup(json.load(req)['pagedata'])
+      dest = soup.find(text="Destination:").findNext('td').string
+      self.destination = parse_coords(dest)
+      if not self.destination: self.destination = dest
+      self.disposition = soup.find(text="Disposition:").findNext('td').string
+      try:
+        self.speed = float(soup.find(text="Current Speed:").findNext('td').string)
+      except: self.speed = 0
+      self.ships = dict()
+      for k,v in pairs(soup('h3')[0].findAllNext('td')):
+        self.ships[k.string] = int(v.string)
+      self._loaded = True
+
   class Planet:
     def __init__(self, galaxy, planetid, name):
       self.galaxy = galaxy
@@ -19,7 +57,7 @@ class Galaxy:
       self.name = name
       self._loaded = False
     def __repr__(self):
-      return "<Planet \"%s\" %d>" % (self.name, self.planetid)
+      return "<Planet #%d \"%s\">" % (self.planetid, self.name)
     def load(self):
       if self._loaded: return
       req = self.galaxy.opener.open(URL_PLANET_DETAIL % self.planetid)
@@ -83,3 +121,30 @@ class Galaxy:
         break
     self._planets = planets
     return planets
+
+  @property
+  def fleets(self):
+    if self._fleets: return self._fleets
+    i=1
+    fleets = []
+    while True:
+      try:
+        req = self.opener.open(URL_FLEETS % i)
+        soup = BeautifulSoup(json.load(req)['tab'])
+        for row in soup('tr')[1:]:
+          cells=row('td')
+          fleetid=re.search(r'/fleets/([0-9]*)/',
+                             str(row('td')[0])).group(1)
+#class=\"rowheader\"/>\n      <th class=\"rowheader\">ID</th><th
+#class=\"rowheader\">Ships</th>\n      <th
+#class=\"rowheader\">Disposition</th><th
+#class=\"rowheader\">Destination</th>\n      <th
+#class=\"rowheader\">Att.</th><th class=\"rowheader\">Def.</th>\n
+          coords = parse_coords(
+            re.search(r'gm.centermap(\([0-9.,]+\))', str(row)).group(1))
+          fleets.append(Galaxy.Fleet(self, fleetid, coords))
+        i += 1
+      except urllib2.HTTPError:
+        break
+    self._fleets = fleets
+    return fleets
