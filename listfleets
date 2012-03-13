@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import game
+import sys
+import types
+
+U,P = sys.argv[1:3]
+
+def dictstr(d):
+  return "(" + " ".join(
+    "%s=%s" % (str(k),str(v)) for (k,v) in d.items()) + ")"
+
+g=game.Galaxy()
+g.login(U,P)
+print 'ID, Disposition, Coords, Destination, Ships'
+for f in g.fleets:
+  f.load()
+  dest = f.destination
+  if type(dest) in (types.ListType, types.TupleType):
+    dest = '(%.1f,%.1f)' % tuple(dest)
+  else:
+    dest = str(dest)
+  print '%d %s (%.1f,%.1f)-->%s %s' % (
+    f.fleetid, f.disposition, 
+    f.coords[0], f.coords[1],
+    dest,
+    dictstr(f.ships)
+  )
+
+

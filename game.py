@@ -14,6 +14,20 @@ URL_FLEETS = HOST + "/fleets/list/all/%d/"
 URL_PLANET_DETAIL = HOST + "/planets/%d/info/"
 URL_FLEET_DETAIL = HOST + "/fleets/%d/info/"
 
+ALL_SHIPS = set((
+  'superbattleships',
+  'bulkfreighters',
+  'subspacers',
+  'arcs',
+  'blackbirds',
+  'merchantmen',
+  'scouts',
+  'battleships',
+  'destroyers',
+  'frigates',
+  'cruisers',
+))
+
 def pairs(t):
   return izip(*[iter(t)]*2)
 
@@ -31,7 +45,7 @@ class Galaxy:
       self._loaded = False
     def __repr__(self):
       return "<Fleet #%d%s @ (%.1f,%.1f)>" % (self.fleetid, 
-        (' (%s, %s ships)' % (self.disposition, len(self.ships))) \
+        (' (%s, %d ships)' % (self.disposition, len(self.ships))) \
           if self._loaded else '',
         self.coords[0], self.coords[1])
     def load(self):
@@ -47,7 +61,9 @@ class Galaxy:
       except: self.speed = 0
       self.ships = dict()
       for k,v in pairs(soup('h3')[0].findAllNext('td')):
-        self.ships[k.string] = int(v.string)
+        shiptype = re.match(r'[a-z]+', k.string).group()
+        if not shiptype in ALL_SHIPS: continue
+        self.ships[shiptype] = int(v.string)
       self._loaded = True
 
   class Planet:
